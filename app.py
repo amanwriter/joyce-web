@@ -65,7 +65,7 @@ def wsi(request):
                 yield from wst.close()
                 break
             else:
-                wsk.send_str(msg)
+                wsk.send_str(msg.data)
         elif msg.tp == MsgType.close:
             break
         elif msg.tp == MsgType.error:

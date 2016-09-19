@@ -22,7 +22,7 @@ class EchoServerProtocol:
         # self.transport.sendto(data, addr)
 
 loop = asyncio.get_event_loop()
-print("Starting UDP server")
+print("Starting UDP server on port 9999")
 # One protocol instance will be created to serve all client requests
 listen = loop.create_datagram_endpoint(
     EchoServerProtocol, local_addr=('0.0.0.0', 9999))

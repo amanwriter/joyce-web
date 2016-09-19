@@ -111,7 +111,8 @@ var projp, bat_plane;
 var vgn2 = 0;
 
 // Websocket
-var ws = new WebSocket("ws://127.0.0.1:8080/ws");
+var ws = new WebSocket("ws://"+window.location.hostname+"/ws");
+console.log("ws://"+window.location.hostname+"/ws");
 
 ws.onopen = function() {
     // var timertoggle = setInterval(function(){ws.send('0');}, 20);

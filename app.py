@@ -84,7 +84,7 @@ def get_file(request):
         resp = ''
     return Response(status=200, body=resp.encode())
 
-
+loop = asyncio.get_event_loop()
 app = web.Application()
 app.router.add_route('GET', '/ws', wso)
 app.router.add_route('GET', '/is', wsi)

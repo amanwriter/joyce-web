@@ -6,27 +6,27 @@ wsk = None
 wst = None
 vib = False
 
-class EchoServerProtocol:
-    def connection_made(self, transport):
-        self.transport = transport
+# class EchoServerProtocol:
+#     def connection_made(self, transport):
+#         self.transport = transport
 
-    def datagram_received(self, data, addr):
-        global wsk
-        message = data.decode()
-        wsk.send_str(message)
-        # print(message)
-        # print('Received %r from %s' % (message, addr))
-        # self.transport.sendto("msg".encode(), addr)
-        # print("sent message")
-        # print('Send %r to %s' % (message, addr))
-        # self.transport.sendto(data, addr)
+#     def datagram_received(self, data, addr):
+#         global wsk
+#         message = data.decode()
+#         wsk.send_str(message)
+#         # print(message)
+#         # print('Received %r from %s' % (message, addr))
+#         # self.transport.sendto("msg".encode(), addr)
+#         # print("sent message")
+#         # print('Send %r to %s' % (message, addr))
+#         # self.transport.sendto(data, addr)
 
-loop = asyncio.get_event_loop()
-print("Starting UDP server on port 9999")
-# One protocol instance will be created to serve all client requests
-listen = loop.create_datagram_endpoint(
-    EchoServerProtocol, local_addr=('0.0.0.0', 9999))
-transport, protocol = loop.run_until_complete(listen)
+# loop = asyncio.get_event_loop()
+# print("Starting UDP server on port 9999")
+# # One protocol instance will be created to serve all client requests
+# listen = loop.create_datagram_endpoint(
+#     EchoServerProtocol, local_addr=('0.0.0.0', 9999))
+# transport, protocol = loop.run_until_complete(listen)
 
 
 # WebSocket for screen
@@ -55,6 +55,7 @@ def wso(request):
 @asyncio.coroutine
 def wsi(request):
     global wst
+    global wsk
     wst = WebSocketResponse()
     wst.start(request)
     while True:
@@ -63,6 +64,8 @@ def wsi(request):
             if msg.data == 'close':
                 yield from wst.close()
                 break
+            else:
+                wsk.send_str(msg)
         elif msg.tp == MsgType.close:
             break
         elif msg.tp == MsgType.error:

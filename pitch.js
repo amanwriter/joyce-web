@@ -46,8 +46,6 @@ var can_collide = true;
 
 var out = false;
 
-var hack = 3;
-
 var current_game_state = {};
 
 var ball_velocities = [
@@ -199,8 +197,7 @@ function begin_ball(){
     wagon_wheel();
     setTimeout(function() { 
         // Select random ball
-        delivery = hack;//Math.floor(Math.random()*ball_velocities.length);
-        hack += 1;
+        delivery = Math.floor(Math.random()*ball_velocities.length);
         ballv = ball_velocities[delivery].slice(); 
         ball = [-5000, 200, 600]; }, 1000);
 }

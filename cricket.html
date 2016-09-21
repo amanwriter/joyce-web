@@ -22,9 +22,6 @@
 
       var numcols = 0;
 
-      var hack_num = 0;
-      var hack_arr = ["hook", "downtheline"];
-
       ws.onopen = function (event) {
   		var url = window.location.href;
   		var token = url.substr(url.indexOf("#")+1)
@@ -50,9 +47,7 @@
         }
 
         if (command === "execute"){
-        	execute_shot(hack_arr[hack_num]);
-        	hack_num += 1;
-        	// execute_shot(inp.substr(inp.indexOf("_")+1));
+        	execute_shot(inp.substr(inp.indexOf("_")+1));
         }
 
         if (command === "gamestate"){

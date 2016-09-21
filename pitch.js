@@ -1,9 +1,15 @@
-var theCanvas = document.getElementById("canvasOne");
+var theCanvas = document.getElementById("canvasBl");
 var context = theCanvas.getContext("2d");
 
-var selectx = 0,
-    selecty = 0,
-    selectz = 0;
+var theCanvas0 = document.getElementById("canvasBg");
+var contextbg = theCanvas0.getContext("2d");
+
+var theCanvas1 = document.getElementById("canvasWw");
+var contextww = theCanvas1.getContext("2d");
+
+var theCanvas2 = document.getElementById("canvasWwb");
+var contextwwb = theCanvas2.getContext("2d");
+
 var zf = 1;
 var displayWidth, displayHeight, fLen, projCenterX, projCenterY, zMax, timer, sphereRad = 280,
     particleRad = 30,
@@ -11,77 +17,10 @@ var displayWidth, displayHeight, fLen, projCenterX, projCenterY, zMax, timer, sp
 var virgin = 0;
 var angles = [0, 0, 0];
 var hitvec = [];
+var slow_mo = false;
 
 var counter = 0;
-
-// For simplicity's sake Bat is a collection of rectangles, triangles and trapeziums
-var bat = [
-    // Front Face
-    [
-        [-280, -15, 0],
-        [-280, 15, 0],
-        [-100, 15, 0],
-        [-100, -15, 0], 'chocolate'
-    ], //Top
-
-    [
-        [-280, -15, 0],
-        [-280, -15, -7],
-        [-100, -15, -7],
-        [-100, -15, 0], 'burlywood'
-    ], // Left
-    [
-        [-280, 15, 0],
-        [-280, 15, -7],
-        [-100, 15, -7],
-        [-100, 15, 0], 'burlywood'
-    ], //Right
-    // Bottom
-    [
-        [-280, -15, -7],
-        [-240, 0, -20],
-        [-100, 0, -7],
-        [-100, -15, -7], 'saddlebrown'
-    ],
-    [
-        [-280, 15, -7],
-        [-240, 0, -20],
-        [-100, 0, -7],
-        [-100, 15, -7], 'sienna'
-    ],
-    [
-        [-280, -15, -7],
-        [-240, 0, -20],
-        [-280, 15, -7], 'peru'
-    ],
-
-    //Handle Front
-    [
-        [-100, -5, 0],
-        [-100, 5, 0],
-        [0, 5, 0],
-        [0, -5, 0], 'green'
-    ], // Top
-    [
-        [-100, -5, 0],
-        [-100, -5, -5],
-        [0, -5, -5],
-        [0, -5, 0], 'green'
-    ], //Left
-    [
-        [-100, 5, 0],
-        [-100, 5, -5],
-        [0, 5, -5],
-        [0, 5, 0], 'green'
-    ], // Right
-    [
-        [-100, -5, -5],
-        [-100, 5, -5],
-        [0, 5, -5],
-        [0, -5, -5], 'green'
-    ] // Bottom
-
-];
+var delivery = 0;
 
 var pitch = [
     [
@@ -95,56 +34,176 @@ var pitch = [
         [-5010, -400, -300],
         [-5010, 400, -300],
         [-5000, 400, -300], 'white'
-    ],
-    [
-        [-250, -400, -300],
-        [-260, -400, -300],
-        [-260, 400, -300],
-        [-250, 400, -300], 'white'
     ]
 ];
 
 var ball = [-5000, 200, 600];
 var ballv = [0, 0, 0];
+var wwballv = [0, 0];
+var wwball = [150, 120];
+var wwbt = 1;
 var can_collide = true;
-var projp, bat_plane;
-var vgn2 = 0;
 
-// Websocket
-var ws = new WebSocket("ws://"+window.location.hostname+"/ws");
-console.log("ws://"+window.location.hostname+"/ws");
+var out = false;
 
-ws.onopen = function() {
-    // var timertoggle = setInterval(function(){ws.send('0');}, 20);
+var current_game_state = {};
+
+var ball_velocities = [
+[70, -1.5, -10], 
+[70, -2.7, -10], 
+[70, -3.8, -10], 
+
+[70, -1.5, -9], 
+[70, -2.7, -9], 
+[70, -3.8, -9], 
+
+[70, -1.5, -8], 
+[70, -2.7, -8], 
+[70, -3.8, -8], 
+
+];
+
+var field_pos = {
+"wicketkeeper": [150, 100], 
+"straighthit": [150, 260], 
+"midoff": [125, 185], 
+"longoff": [100, 240], 
+"squareleg": [190, 120], 
+"deepsquareleg": [255, 110], 
+"slip": [130, 105], 
+"thirdman": [100, 50]
+}
+
+var fields = [
+
+// ["wicketkeeper", "straighthit", "midoff", "longoff", "squareleg", "deepsquareleg", "slip", "thirdman"],
+["wicketkeeper", "midoff", "squareleg", "slip", "thirdman"],
+["wicketkeeper", "straighthit", "longoff", "deepsquareleg", "thirdman"],
+["wicketkeeper", "straighthit", "thirdman", "longoff", "deepsquareleg"],
+
+
+
+// [[100, 100],[200, 200],[200, 150]],
+// [[50, 150], [200, 250], [120, 170]]
+
+];
+
+var cur_field = [];
+
+// Shots 
+var the_shots = {
+"leave":[0, 0, false, [0,1,2,3,5,6,8], [4,7], [], ["wicketkeeper"], 0],
+"downtheline": [155, 300, true, [4], [1, 7], ["straighthit"], [], 6],
+"defence": [125, 185, false, [3,4,5,6,8], [7], [], ["midoff", "longoff"], 1],
+"hook": [300, 110, true, [0, 1, 3, 4], [7], ["squareleg"], ["deepsquareleg"], 4],
+"latecut": [80, 40, false, [4, 5, 7, 8], [], ["slip"], ["thirdman"], 4] 
 };
 
-ws.onmessage = function(event) {
+function begin_game(){
 
-    if (virgin == 0) {
-        init();
-        virgin = 1;
+init();
+begin_ball();
+
+}
+
+function contains(ar, elem){
+    for (var i=0;i<ar.length;i++){
+        if (ar[i]==elem){return true;}
     }
-    var command = event.data.split(" ");
+    return false;
+}
 
-    if (command[0] == 'ball') {
-        ballv = [70, -3, -7];
-    } else if (command[0] == 'reset') {
-        ballv = [0, 0, 0];
-        ball = [-5000, 200, 600];
-        can_collide = true;
-    } else if (command[0] == 'shot') {
-        multi = 1 - 2 * parseFloat(command[3]);
-        ballv = [multi*hitvec[0], multi*hitvec[1], multi*hitvec[2]];
-        // ballv = [0, 0, 0];
-        // can_collide = true;
-        console.log("Boom goes the dynamite!");
-        console.log(multi);
-    } else {
-        angles = [parseFloat(command[0]), parseFloat(command[1]), parseFloat(command[2])];
+function contains2(ar, ar2){
+    for (var i=0;i<ar.length;i++){
+        for (var j=0;j<ar2.length;j++){
+        if (ar[i]===ar2[j]){return ar2[j];
+        }
+    }
+    }
+    return false;
+}
+
+
+function execute_shot(shot_name){
+
+ball = [-5000, 200, 600];
+ballv = [0,0,0];
+
+// Check if shot is valid
+if (contains(the_shots[shot_name][3], delivery)){
+    // The shot is valid
+    if (contains2(cur_field, the_shots[shot_name][5])){
+        var fielder = contains2(cur_field, the_shots[shot_name][5]);        
+        wwballv = [field_pos[fielder][0], field_pos[fielder][1]];
+        setTimeout(function() {display_message("CATCH OUT!");
+            ws.send("out");
+            out = true;
+    }, 2000);
+
+    }
+    // Check if ball will be stopped
+    else if (contains2(cur_field, the_shots[shot_name][6])){
+        var fielder = contains2(cur_field, the_shots[shot_name][6]);        
+        wwballv = [field_pos[fielder][0], field_pos[fielder][1]];        
+        setTimeout(function() {display_message("SINGLE");}, 2000);
+        current_game_state["runs"] += 1;
+    }
+    else {
+    // Provide velocity to wwball
+    wwballv = [the_shots[shot_name][0], the_shots[shot_name][1]];
+    var runs_in_ball = the_shots[shot_name][7];
+    setTimeout(function() {display_message(runs_in_ball+" RUNS");}, 2000);
+    current_game_state["runs"] += runs_in_ball;
+    }
+
+    wwbt = 0;
+    current_game_state["balls"] += 1;
+
+    if (current_game_state["balls"]>17){
+        display_message("END OF INNINGS");
+        out = true;
+    }
+
+}
+else{
+
+    if (contains(the_shots[shot_name][4], delivery)){
+        current_game_state["balls"] += 1;
+        // Batsman is out
+        ws.send("out");
+        out = true;
+
+        display_message("BOWLED!");
+
+    }
+    else {
+    display_message("DOT BALL");
+    // Bad shot
     }
 }
 
+    // Send current game state back to client
+    ws.send(JSON.stringify(current_game_state));
+    document.getElementById("score").innerHTML  = current_game_state["runs"]+" runs in "+current_game_state["balls"]+" balls";
+
+}
+
+function begin_ball(){
+    slow_mo = false;
+    wwball = [150, 120];
+    wwballv = [0, 0];
+    // Select random field
+    cur_field = fields[Math.floor(Math.random()*fields.length)];
+    wagon_wheel();
+    setTimeout(function() { 
+        // Select random ball
+        delivery = Math.floor(Math.random()*ball_velocities.length);
+        ballv = ball_velocities[delivery].slice(); 
+        ball = [-5000, 200, 600]; }, 1000);
+}
+
 function init() {
+    out = false;
 
     displayWidth = theCanvas.width;
     displayHeight = theCanvas.height;
@@ -156,7 +215,7 @@ function init() {
     projCenterY = displayHeight / 2;
 
     zMax = fLen - 2;
-
+    drawGround();
     //timer = setInterval(onTimer, 100);
     requestAnimationFrame(onTimer);
 }
@@ -183,54 +242,6 @@ function bounce() {
     ballv[0] = grip * ballv[0];
     ballv[1] = grip * ballv[1];
     ball[2] = -250;
-    6
-    // console.log('distance');
-    // console.log(ball[0]);
-}
-
-function transform(a, b) {
-    var rza = [
-        [Math.cos(b[0]), -Math.sin(b[0]), 0],
-        [Math.sin(b[0]), Math.cos(b[0]), 0],
-        [0, 0, 1]
-    ];
-    var ryb = [
-        [Math.cos(b[1]), 0, Math.sin(b[1])],
-        [0, 1, 0],
-        [-Math.sin(b[1]), 0, Math.cos(b[1])]
-    ];
-    var rxg = [
-        [1, 0, 0],
-        [0, Math.cos(b[2]), -Math.sin(b[2])],
-        [0, Math.sin(b[2]), Math.cos(b[2])]
-    ];
-
-    var r = mat_mult(mat_mult(rza, ryb), rxg);
-
-    return mat_mult(r, a);
-}
-
-function reverse_transform(a, b) {
-    b = [-b[0], -b[1], -b[2]];
-    var rza = [
-        [Math.cos(b[0]), -Math.sin(b[0]), 0],
-        [Math.sin(b[0]), Math.cos(b[0]), 0],
-        [0, 0, 1]
-    ];
-    var ryb = [
-        [Math.cos(b[1]), 0, Math.sin(b[1])],
-        [0, 1, 0],
-        [-Math.sin(b[1]), 0, Math.cos(b[1])]
-    ];
-    var rxg = [
-        [1, 0, 0],
-        [0, Math.cos(b[2]), -Math.sin(b[2])],
-        [0, Math.sin(b[2]), Math.cos(b[2])]
-    ];
-
-    var r = mat_mult(mat_mult(rxg, ryb), rza);
-
-    return mat_mult(r, a);
 }
 
 function physics() {
@@ -240,7 +251,7 @@ function physics() {
     ball[1] += ballv[1];
     ball[2] += ballv[2];
 
-    if (ballv[0]) {
+    if ((ballv[0])&&(!(slow_mo))) {
         ballv[2] -= 0.15;
     }
     // Collision detection
@@ -254,178 +265,107 @@ function physics() {
         can_collide = true;
         return
     }
-    // Avoid checking for collision if ball is too far away
-    if (ball[0] < -300){
-    	return
+
+    if ((ball[0] > 0)&&(!(slow_mo))){
+        // execute_shot("hook");
+        ws.send("shot");
+        ballv[0] = ballv[0]/10;
+        ballv[1] = ballv[1]/10;
+        ballv[2] = ballv[2]/10;
+        slow_mo = true;
     }
 
-    // Bat collision
-    if (bat_plane) {
-        // Obtain equation of bat plane
-        var v1 = [0, 0, 0];
-        var v2 = [0, 0, 0];
-        for (var i = 0; i < 3; i++) {
-            v1[i] = bat_plane[0][i] - bat_plane[2][i];
-            v2[i] = bat_plane[1][i] - bat_plane[2][i];
-        }
-
-        var numrtm = [
-        [1, 1, 1, 1], 
-        [bat_plane[0][0][0], bat_plane[1][0][0], bat_plane[2][0][0], ball[0]],
-        [bat_plane[0][1][0], bat_plane[1][1][0], bat_plane[2][1][0], ball[1]],
-        [bat_plane[0][2][0], bat_plane[1][2][0], bat_plane[2][2][0], ball[2]]
-        ];
-        var denomm = [
-        [1, 1, 1, 0],
-        [bat_plane[0][0][0], bat_plane[1][0][0], bat_plane[2][0][0], prevp[0]-ball[0]],
-        [bat_plane[0][1][0], bat_plane[1][1][0], bat_plane[2][1][0], prevp[1]-ball[1]],
-        [bat_plane[0][2][0], bat_plane[1][2][0], bat_plane[2][2][0], prevp[2]-ball[2]]
-        ];
-
-        // console.log(prevp[0]-ball[0]);
-        // console.log(prevp[1]-ball[1]);
-        // console.log(prevp[2]-ball[2]);
-        // console.log(numrtm);
-        // console.log(denomm);
-
-        var in_ball = false;
-        var t0 = - math.det(numrtm)/math.det(denomm);
-        // console.log(t0);
-        projp = [
-        	[ball[0] + t0 * (prevp[0]-ball[0])],
-        	[ball[1] + t0 * (prevp[1]-ball[1])],
-        	[ball[2] + t0 * (prevp[2]-ball[2])]
-        		];
-        // console.log(projp);
-        if ((t0<1) && (t0>0)){
-            console.log("collision!");
-        	in_ball = true;
-        }
-
-        // Getting reflection point 
-
-        var ca = v1[1] * v2[2] - v1[2] * v2[1];
-        var cb = v1[2] * v2[0] - v1[0] * v2[2];
-        var cc = v1[0] * v2[1] - v1[1] * v2[0];
-        var cd = -(ca * bat_plane[0][0] + cb * bat_plane[0][1] + cc * bat_plane[0][2]);
-
-        // Project ball center on bat plane
-        var t0 = -2 * (ca * ball[0] + cb * ball[1] + cc * ball[2] + cd) / (ca * ca + cb * cb + cc * cc);
-        var refl = [
-            [ball[0] + ca * t0],
-            [ball[1] + cb * t0],
-            [ball[2] + cc * t0]
-        ];
-        // //Check if point inside ball
-        // var in_ball = false;
-        // if (t0 * t0 * (ca * ca + cb * cb + cc * cc) < 1600) {
-        //     in_ball = true;
-        // }
-
-        //Check if point inside bat
-        if (in_ball) {
-
-            var new_p = reverse_transform(projp, angles);
-            console.log(new_p);
-            if ((new_p[0][0] > -280) && (new_p[0][0] < -100)) {
-                if ((new_p[1][0] > -15) && (new_p[1][0]) < 15) {
-                    // Hit
-                    console.log('collision');
-                    if (can_collide) {
-                        hitvec = [-projp[0][0] + refl[0][0], -projp[1][0] + refl[1][0], -projp[2][0] + refl[2][0]];
-                        var norm = Math.sqrt(hitvec[0]*hitvec[0]+hitvec[1]*hitvec[1]+hitvec[2]*hitvec[2]);
-                        for (var i=0;i<3;i++){
-                            hitvec[i] = hitvec[i]/norm;
-                        }
-                        // HitVec is now a unit vector pointing towards the desired direction of the ball
-                        // Disabling ball movement until speed is computed
-                        ballv = [0,0,0];
-                        // ballv = [2 * hitvec[0], 2 * hitvec[1], 2 * hitvec[2]];
-                        ws.send('v');
-                        can_collide = false;
-                    }
-                }
-            }
-        }
+    if (wwbt<1){
+        wwball[0] = 150*(1-wwbt) + (wwbt)*wwballv[0];
+        wwball[1] = 120*(1-wwbt) + (wwbt)*wwballv[1];
+        wwbt += 0.01;
     }
 
 }
 setInterval(physics, 20);
-// physics();
 
-function onTimer() {
-    context.clearRect(0, 0, canvasOne.width, canvasOne.height);
-
+function drawGround(){
+    contextbg.clearRect(0, 0, theCanvas0.width, theCanvas0.height);
     // Drawing the ground
-    context.fillStyle = 'lawngreen';
-    context.moveTo(0, 600);
-    context.lineTo(0, 300);
-    context.quadraticCurveTo(450, 250, 900, 300);
-    context.lineTo(900, 600);
-    context.lineTo(0, 600);
-    context.fill();
-
-    bat_plane = [];
-    var to_draw = [];
-    for (var i = 0; i < bat.length; i++) {
-        var to_draw2 = [];
-        for (var j = 0; j < bat[i].length - 1; j++) {
-            var cords = [
-                [bat[i][j][0]],
-                [bat[i][j][1]],
-                [bat[i][j][2]]
-            ];
-            var n_cords = transform(cords, angles);
-            if (i == 0) {
-                bat_plane.push(n_cords);
-            }
-            var sradius = zf * 1 * fLen / (fLen - (n_cords[0][0] + sphereCenterZ));
-            var sprojX = -n_cords[1][0] * sradius + projCenterX;
-            var sprojY = -n_cords[2][0] * sradius + projCenterY;
-            to_draw2.push([sprojX, sprojY, n_cords[0][0]]);
-        }
-        to_draw.push([to_draw2, bat[i][bat[i].length - 1]]);
-    }
-
-    to_draw = to_draw.sort(function(a, b) {
-        var mina = -1000;
-        for (var k = 0; k < a[0].length; k++) {
-            if (a[0][k][2] > mina) {
-                mina = a[0][k][2];
-            }
-        }
-        var minb = -1000;
-        for (var k = 0; k < b[0].length; k++) {
-            if (b[0][k][2] > minb) {
-                minb = b[0][k][2];
-            }
-        }
-
-        return mina - minb;
-    });
+    contextbg.fillStyle = 'limegreen';
+    contextbg.moveTo(0, 600);
+    contextbg.lineTo(0, 300);
+    contextbg.quadraticCurveTo(450, 250, 900, 300);
+    contextbg.lineTo(900, 600);
+    contextbg.lineTo(0, 600);
+    contextbg.fill();
 
     // Drawing the pitch
-    for (var i = 0; i < 3; i++) {
-        context.fillStyle = pitch[i][4];
-        context.beginPath();
+    for (var i = 0; i < 2; i++) {
+        contextbg.fillStyle = pitch[i][4];
+        contextbg.beginPath();
         var startp = [0, 0];
         for (var j = 0; j < 4; j++) {
             var sradius = zf * 1 * fLen / (fLen - (pitch[i][j][0] + sphereCenterZ));
             var sprojX = -pitch[i][j][1] * sradius + projCenterX;
             var sprojY = -pitch[i][j][2] * sradius + projCenterY;
             if (j == 0) {
-                context.moveTo(sprojX, sprojY);
+                contextbg.moveTo(sprojX, sprojY);
                 startp = [sprojX, sprojY];
             } else {
-                context.lineTo(sprojX, sprojY);
+                contextbg.lineTo(sprojX, sprojY);
             }
         }
-        context.lineTo(startp[0], startp[1]);
-        context.closePath();
-        context.fill();
+        contextbg.lineTo(startp[0], startp[1]);
+        contextbg.closePath();
+        contextbg.fill();
+    }
+    // Drawing stumps
+    contextbg.fillStyle = "brown";
+    contextbg.fillRect(449, 297, 2, 50);
+    contextbg.fillRect(445, 297, 2, 50);
+    contextbg.fillRect(453, 297, 2, 50);
+
+    // Drawing reference box
+    contextbg.setLineDash([6]);
+    contextbg.strokeStyle = "red";
+    contextbg.strokeRect(300, 200, 300, 300);
+    contextbg.strokeRect(300, 200, 200, 200);
+    contextbg.strokeRect(400, 300, 200, 200);
+    contextbg.strokeRect(400, 200, 200, 200);
+    contextbg.strokeRect(300, 300, 200, 200);
+
+
+}
+
+function wagon_wheel(){
+    contextww.clearRect(0, 0, theCanvas1.width, theCanvas1.height);
+
+    contextww.fillStyle = 'green';
+    contextww.beginPath();
+    contextww.arc(theCanvas1.width/2, theCanvas1.width/2, 120, 0, 2 * Math.PI, false);
+    contextww.closePath();
+    contextww.fill();
+
+    contextww.fillStyle = 'lightgreen';
+    contextww.beginPath();
+    contextww.arc(theCanvas1.width/2, theCanvas1.width/2, 60, 0, 2 * Math.PI, false);
+    contextww.closePath();
+    contextww.fill();
+
+    contextww.fillStyle = 'bisque';
+    contextww.fillRect(140, 120, 20, 60);    
+
+    contextww.fillStyle = 'blue';
+    for (var i=0;i<cur_field.length;i++){
+        contextww.beginPath();
+        contextww.arc(field_pos[cur_field[i]][0], field_pos[cur_field[i]][1], 4, 0, 2 * Math.PI, false);
+        contextww.closePath();
+        contextww.fill();
     }
 
-    // Drawing the ball
+}
+
+function onTimer() {
+    context.clearRect(0, 0, theCanvas.width, theCanvas.height);
+
+    if (wwbt>=1){
+    // Drawing the main ball
     context.fillStyle = 'red';
     context.beginPath();
     var ball_r = zf * 1 * fLen / (fLen - ball[0]);
@@ -434,46 +374,17 @@ function onTimer() {
     context.arc(ball_x, ball_y, ball_r * 7, 0, 2 * Math.PI, false);
     context.closePath();
     context.fill();
-
-    // Drawing the bat
-    for (var i = 0; i < to_draw.length; i++) {
-        context.fillStyle = to_draw[i][1];
-        var startp = [0, 0];
-        context.beginPath();
-        for (var j = 0; j < to_draw[i][0].length; j++) {
-            var sprojX = to_draw[i][0][j][0];
-            var sprojY = to_draw[i][0][j][1];
-            if (j == 0) {
-                context.moveTo(sprojX, sprojY);
-                startp = [sprojX, sprojY];
-            } else {
-                context.lineTo(sprojX, sprojY);
-            }
-        }
-        context.lineTo(startp[0], startp[1]);
-        context.closePath();
-        context.fill();
+}
+    // Drawing the WW ball
+    else{
+    wagon_wheel();
+    contextwwb.clearRect(0, 0, 300, 300);
+    contextwwb.fillStyle = 'red';
+    contextwwb.beginPath();
+    contextwwb.arc(wwball[0], wwball[1], 2, 0, 2 * Math.PI, false);
+    contextwwb.closePath();
+    contextwwb.fill();
     }
 
-    if (projp) {
-        // Drawing order test, if projection is behind ball, draw ball again
-        if (projp[0][0] < ball[0]) {
-            context.fillStyle = 'red';
-            context.beginPath();
-            var ball_r = zf * 1 * fLen / (fLen - ball[0]);
-            var ball_x = -ball[1] * ball_r + projCenterX;
-            var ball_y = -ball[2] * ball_r + projCenterY;
-            // var ball_r = zf * 1 * fLen / (fLen - projp[0][0]);
-            // var ball_x = -projp[1][0] * ball_r + projCenterX;
-            // var ball_y = -projp[2][0] * ball_r + projCenterY;
-            // console.log(ball_x);
-            // console.log(ball_y)
-            if (ball_r > 0){
-            context.arc(ball_x, ball_y, ball_r * 7, 0, 2 * Math.PI, false);
-            context.closePath();
-            context.fill();
-        }
-        }
-    }
     requestAnimationFrame(onTimer);
 }

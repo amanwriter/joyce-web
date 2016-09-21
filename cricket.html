@@ -4,19 +4,328 @@
 <head>
 <meta charset="UTF-8">
 <title>Cricket</title>
-<script src="http://cdnjs.cloudflare.com/ajax/libs/mathjs/3.5.1/math.min.js"></script>
-<style type="text/css">
-	body {background-color:aquamarine; color:black;} 
-	h3 {font-family: sans-serif; color:#555555;}
-</style>
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      // google.charts.setOnLoadCallback(drawChart);
+
+      var ws = new WebSocket("ws://"+window.location.hostname+"/ws");
+      var current_shot = "";
+
+      var viz_data = {"ax": [['id', 'shot1']], "ay": [['id', 'shot1']], "az": [['id', 'shot1']], 
+      "ox": [['id', 'shot1']], "oy": [['id', 'shot1']], "oz": [['id', 'shot1']]};
+
+      var numcols = 0;
+
+      ws.onopen = function (event) {
+  		var url = window.location.href;
+  		var token = url.substr(url.indexOf("#")+1)
+  		ws.send(token);
+  		// Might result in a race condition
+  		ws.send("switched_menu");
+		};
+
+
+      ws.onmessage = function(event) {
+        var inp = event.data;
+        var command = inp.substr(0, inp.indexOf("_"));
+
+        if (command === "navi"){
+        	var details = inp.substr(inp.indexOf("_")+1);
+        	if (details === "next"){shot_navigate("next");}
+        	if (details === "prev"){shot_navigate("prev");}
+        	if (details === "play"){play_vid();}
+        }
+
+        if (command === "error"){
+        	display_message(inp.substr(inp.indexOf("_")+1));
+        }
+
+        if (command === "execute"){
+        	execute_shot(inp.substr(inp.indexOf("_")+1));
+        }
+
+        if (command === "gamestate"){
+        	current_game_state = JSON.parse(inp.substr(inp.indexOf("_")+1));
+        	init();
+			// begin_ball();
+        }
+
+    	if (command === "start"){
+    		// Start learning the shot (generate shot event with delay)
+    		go();
+
+    	}
+
+    	if (command === "nextball"){
+    		begin_ball();
+    	}
+
+    	if (command === "forget"){
+    		// Forget the shot
+    		clean_charts();
+    		ws.send("forgotten");
+    	}
+
+    	if (command === "switch"){
+    		// Switch tabs based on details
+    		var details = inp.substr(inp.indexOf("_")+1);
+    		$('#myTabs a[href="#'+details+'"]').tab('show');
+    		// Send ack back to client
+    		ws.send("switched_"+details);
+    	}
+
+    	if (command === "execute_shot"){
+    		var details = inp.substr(inp.indexOf("_")+1);
+    		execute(details);
+    	}
+
+
+        if (command === "shotsig"){
+	        var data = JSON.parse(inp.substr(inp.indexOf("_")+1));
+	        var cnter = 0;
+	        numcols += 1;
+	        for (k in data){
+	          if ((k == "dta")||(k == "dto")){continue;}
+	          if (k[0]=="c"){
+	            continue;
+	        }
+	          if (numcols>1){viz_data[k][0].push("shot"+numcols);}
+	          for (i=0;i<data[k].length;i++){
+	            if (numcols>1){
+
+	              if (i+1 in viz_data[k]){viz_data[k][i+1].push(data[k][i]);}
+	              else{
+	                var iar = [i];
+	                for (j=0;j<numcols-1;j++){iar.push(0);}
+	                  iar.push(data[k][i]);
+	                viz_data[k].push(iar);
+	              }
+	          }
+	          else{
+	            viz_data[k].push([i, data[k][i]]);
+	          }
+	          }
+	          if (numcols>1){
+	            for (i=data[k].length+1;i<viz_data[k].length;i++){viz_data[k][i].push(0);}
+	          }
+	        drawChart(cnter, k, viz_data[k]);
+	        cnter += 1;
+	        }
+    }
+
+}
+
+      function go(){
+        setTimeout(function() { ws.send("shot"); }, 3000);
+      }
+
+      function drawChart(id, val, idata) {
+        var data = google.visualization.arrayToDataTable(idata);
+        var options = {
+          title: val,
+          legend: { position: 'bottom' }
+        };
+        var chart = new google.visualization.LineChart(document.getElementById('chart'+id));
+        chart.draw(data, options);
+      }
+    </script>
+
+
 
 </head>
-<body>
+<body style="background-color:aquamarine;">
 
-<canvas id="canvasOne" width="900" height="600" style="position:absolute;top:0;left:0;width:100%;height:100%;">
-</canvas>
+<center>
+
+<div class="alert alert-success" id="success-alert">
+
+</div>
+
+</center>
+
+<!-- <button onclick="debug()">DEBUG</button> -->
+
+<div id="myTabs">
+
+  <!-- Nav tabs -->
+
+  <ul class="nav nav-tabs hidden" role="tablist">
+    <li role="presentation" class="active"><a href="#menu" aria-controls="menu" role="tab" data-toggle="tab">Menu</a></li>
+    <li role="presentation"><a href="#learn2play" aria-controls="learn2play" role="tab" data-toggle="tab">Learn To Play</a></li>
+    <li role="presentation"><a href="#match" aria-controls="match" role="tab" data-toggle="tab">Play Match</a></li>
+  </ul>
+
+
+  <!-- Tab panes -->
+  <div class="tab-content">
+    <div role="tabpanel" class="tab-pane active" id="menu">
+    	<center>
+    <div>
+    Select menu from phone
+	</div>
+	</center>
+    </div>
+    <div role="tabpanel" class="tab-pane" id="learn2play">
+    	
+      <div id="carousel-example-generic" class="carousel slide" data-ride="carousel">
+        <div class="carousel-inner" role="listbox">
+          
+          <!--The id should be equal to the Shot_ID and the vid_id should 'vid_'+shot_id-->
+          <div class="item active" id="leave">
+          <center>
+            <video id="vid_leave" style="width:60%;height:40%;">
+            <source src="mov_bbb.mp4" type="video/mp4">This browser does not support videos.</video>
+            <div class="carousel-caption">
+              <b>Leave</b><br>
+              A "play-it-safe" option as it does not fetch any runs, but nullifies any chances of getting out. To be played when uncertain about the delivery and you know it's not heading towards your stumps. 
+            </div>
+          </div>
+
+          <div class="item" id="downtheline">
+          <center>
+            <video id="vid_downtheline" style="width:60%;height:40%;">
+            <source src="mov_bbb.mp4" type="video/mp4">This browser does not support videos.</video>
+            <div class="carousel-caption">
+              <b>Lofted Stright Drive</b><br>
+              A "maximum risk-maximum reward" option, fetches a full 6 runs when hit correctly, but high chances of getting out if not connected properly. To be played when the ball is right in the center.
+            </div>
+          </div>
+
+
+          <div class="item" id="defence">
+          <center>
+            <video id="vid_defence" style="width:60%;height:40%;">
+            <source src="mov_bbb.mp4" type="video/mp4">This browser does not support videos.</video>
+            <div class="carousel-caption">
+              <b>Defence</b><br>
+              A "safe" option, reduces chances of getting out. However, at best can fetch only one run when hit correctly. Be careful when the ball comes right at your toes, no defence is good enough. 
+            </div>
+          </div>
+
+
+          <div class="item" id="hook">
+          <center>
+            <video id="vid_hook" style="width:60%;height:40%;">
+            <source src="mov_bbb.mp4" type="video/mp4">This browser does not support videos.</video>
+            <div class="carousel-caption">
+              <b>Hook</b><br>
+              Attacking shot, best used against balls heading towards your torso. Fetches 4 runs when hit correctly, given there are no fielders adjacent to you towards your left side. 
+            </div>
+          </div>
+
+
+          <div class="item" id="latecut">
+          <center>
+            <video id="vid_latecut" style="width:60%;height:40%;">
+            <source src="mov_bbb.mp4" type="video/mp4">This browser does not support videos.</video>
+            <div class="carousel-caption">
+              <b>Late Cut</b><br>
+              A Cricket's purist delight, this shot combines technique and grace expected of a batsman. To be played when the ball is low and away from you. 
+            </div>
+          </div>
+
+        </div>
+  
+
+  <a class="left carousel-control" href="#carousel-example-generic" role="button" data-slide="prev">
+    <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
+    <span class="sr-only">Previous</span>
+  </a>
+  <a class="right carousel-control" href="#carousel-example-generic" role="button" data-slide="next">
+    <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
+    <span class="sr-only">Next</span>
+  </a>
+
+  </div>
+
+
+<div style="position:absolute;width:100%;height:50%;top:50%;">
+    <div id="chart0" style="position:absolute;top:0;left:0;width:33%;height:50%;"></div>
+    <div id="chart1" style="position:absolute;top:0;left:33%;width:33%;height:50%;"></div>
+    <div id="chart2" style="position:absolute;top:0;left:66%;width:33%;height:50%;"></div>
+    <div id="chart3" style="position:absolute;top:50%;left:0;width:33%;height:50%;"></div>
+    <div id="chart4" style="position:absolute;top:50%;left:33%;width:33%;height:50%;"></div>
+    <div id="chart5" style="position:absolute;top:50%;left:66%;width:33%;height:50%;"></div>
+</div>
+
+
+    </div>
+    <div role="tabpanel" class="tab-pane" id="match">
+    	<canvas id="canvasBg" width="900" height="600" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:0;">
+		</canvas>
+		<canvas id="canvasBl" width="900" height="600" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;">
+		</canvas>
+		<canvas id="canvasWw" width="300" height="300" style="position:absolute;top:0;left:0;width:25%;height:40%;z-index:2;">
+		</canvas>
+		<canvas id="canvasWwb" width="300" height="300" style="position:absolute;top:0;left:0;width:25%;height:40%;z-index:3;">
+		</canvas>
+		<div id="score" style="position:absolute;top:0;left:80%;width:20%;height:10%;z-index:4;">
+		</div>
+    </div>
+  </div>
+
+</div>
+
 </body>
 <script type="text/javascript" src="pitch.js">
 </script>
+
+<script type="text/javascript">
+    $('.carousel').carousel({
+  interval: false
+})
+
+function clean_charts(){
+  for (var i=0;i<6;i++){
+    document.getElementById("chart"+i).innerHTML = "";
+  }
+  viz_data = {"ax": [['id', 'shot1']], "ay": [['id', 'shot1']], "az": [['id', 'shot1']], 
+      "ox": [['id', 'shot1']], "oy": [['id', 'shot1']], "oz": [['id', 'shot1']]};
+  numcols = 0;
+}
+
+function shot_navigate(where_to){
+clean_charts();
+$('.carousel').carousel(where_to);
+}
+
+
+$('.carousel').on('slid.bs.carousel', function (event) {
+  current_shot = event.relatedTarget.id;
+  ws.send("curShot_"+current_shot);
+});
+
+function play_vid(){
+	document.getElementById("vid_"+current_shot).play();
+}
+
+// $('#myTabs a[href="#match"]').tab('show');
+
+function display_message(message){
+	document.getElementById('success-alert').innerHTML = message;
+	$("#success-alert").alert();
+	$("#success-alert").fadeTo(3000, 500).slideUp(500, function(){
+	$("#success-alert").slideUp(500);
+});
+}
+
+$("#success-alert").hide();
+
+function debug(){
+	ws.send("debug");
+}
+// $('#myTabs a[href="#match"]').tab('show');
+//         	init();
+// 			begin_ball();
+
+
+</script>
+
 
 </html>

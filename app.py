@@ -2,53 +2,39 @@ import asyncio
 from aiohttp import web
 from aiohttp.web import WebSocketResponse, MsgType, Response
 
-wsk = None
-wst = None
-vib = False
-
-# class EchoServerProtocol:
-#     def connection_made(self, transport):
-#         self.transport = transport
-
-#     def datagram_received(self, data, addr):
-#         global wsk
-#         message = data.decode()
-#         wsk.send_str(message)
-#         # print(message)
-#         # print('Received %r from %s' % (message, addr))
-#         # self.transport.sendto("msg".encode(), addr)
-#         # print("sent message")
-#         # print('Send %r to %s' % (message, addr))
-#         # self.transport.sendto(data, addr)
-
-# loop = asyncio.get_event_loop()
-# print("Starting UDP server on port 9999")
-# # One protocol instance will be created to serve all client requests
-# listen = loop.create_datagram_endpoint(
-#     EchoServerProtocol, local_addr=('0.0.0.0', 9999))
-# transport, protocol = loop.run_until_complete(listen)
-
+wsk = {}
+wst = {}
 
 # WebSocket for screen
 @asyncio.coroutine
 def wso(request):
     global wsk
     global wst
-    wsk = WebSocketResponse()
-    wsk.start(request)
+    wsk0 = WebSocketResponse()
+    wsk0.start(request)
+    unauth = True
     while True:
-        msg = yield from wsk.receive()
+        msg = yield from wsk0.receive()
         if msg.tp == MsgType.text:
+            print("Screen")
+            print(msg.data)
+            if unauth:
+                wsk0.auth = msg.data
+                wsk[wsk0.auth] = wsk0
+                unauth = False
+                continue
             if msg.data == 'close':
-                yield from wsk.close()
+                yield from wsk0.close()
+                wsk.pop(wsk0.auth, None)
                 break
-            elif msg.data == 'v':
-                wst.send_str('v')
+            else:
+                wst[wsk0.auth].send_str(msg.data)
         elif msg.tp == MsgType.close:
             break
         elif msg.tp == MsgType.error:
             break
-    return wsk
+    wsk.pop(wsk0.auth, None)
+    return wsk0
 
 
 # Websocket for mobile device
@@ -56,21 +42,40 @@ def wso(request):
 def wsi(request):
     global wst
     global wsk
-    wst = WebSocketResponse()
-    wst.start(request)
+    wst0 = WebSocketResponse()
+    wst0.start(request)
+    unauth = True
     while True:
-        msg = yield from wst.receive()
+        msg = yield from wst0.receive()
         if msg.tp == MsgType.text:
+            print("Mobile")
+            print(msg.data)
+            if unauth:
+                wst0.auth = msg.data
+                wst[wst0.auth] = wst0
+                unauth = False
+                continue            
             if msg.data == 'close':
-                yield from wst.close()
+                yield from wst0.close()
+                wst.pop(wst0.auth, None)
                 break
             else:
-                wsk.send_str(msg.data)
+                wsk[wst0.auth].send_str(msg.data)
         elif msg.tp == MsgType.close:
             break
         elif msg.tp == MsgType.error:
             break
-    return wst
+    wst.pop(wst0.auth, None)
+    return wst0
+
+
+@asyncio.coroutine
+def verify_token(request):
+    global wst
+    token = request.match_info.get('token')
+    if token in wst:
+        return Response(status=200)
+    return Response(status=500)
 
 
 @asyncio.coroutine
@@ -88,8 +93,9 @@ loop = asyncio.get_event_loop()
 app = web.Application()
 app.router.add_route('GET', '/ws', wso)
 app.router.add_route('GET', '/is', wsi)
-app.router.add_route('GET', '/{req}', get_file)
-
+app.router.add_route('GET', '/verify/{token}', verify_token)
+# app.router.add_route('GET', '/{req}', get_file)
+app.router.add_static('/', '.')
 srv = loop.create_server(app.make_handler(), '0.0.0.0', 8080)
 loop.run_until_complete(srv)
 
@@ -97,5 +103,3 @@ try:
     loop.run_forever()
 except KeyboardInterrupt:
     pass
-
-# aiohttp.web.run_app(app)

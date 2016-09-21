@@ -22,6 +22,9 @@
 
       var numcols = 0;
 
+      var hack_num = 0;
+      var hack_arr = ["hook", "downtheline"];
+
       ws.onopen = function (event) {
   		var url = window.location.href;
   		var token = url.substr(url.indexOf("#")+1)
@@ -47,7 +50,9 @@
         }
 
         if (command === "execute"){
-        	execute_shot(inp.substr(inp.indexOf("_")+1));
+        	execute_shot(hack_arr[hack_num]);
+        	hack_num += 1;
+        	// execute_shot(inp.substr(inp.indexOf("_")+1));
         }
 
         if (command === "gamestate"){
@@ -181,9 +186,9 @@
           <!--The id should be equal to the Shot_ID and the vid_id should 'vid_'+shot_id-->
           <div class="item active" id="leave">
           <center>
-            <video id="vid_leave" style="height:400px;">
+            <video id="vid_leave" style="height:500px;">
             <source src="leave.mp4" type="video/mp4">This browser does not support videos.</video>
-            <div class="carousel-caption">
+            <div class="carousel-caption" style="color:black;font-size:20px">
               <b>Leave</b><br>
               A "play-it-safe" option as it does not fetch any runs, but nullifies any chances of getting out. To be played when uncertain about the delivery and you know it's not heading towards your stumps. 
             </div>
@@ -193,7 +198,7 @@
           <center>
             <video id="vid_downtheline" style="height:400px;">
             <source src="downtheline.mp4" type="video/mp4">This browser does not support videos.</video>
-            <div class="carousel-caption">
+            <div class="carousel-caption" style="color:black;font-size:20px">
               <b>Lofted Stright Drive</b><br>
               A "maximum risk-maximum reward" option, fetches a full 6 runs when hit correctly, but high chances of getting out if not connected properly. To be played when the ball is right in the center.
             </div>
@@ -204,7 +209,7 @@
           <center>
             <video id="vid_defence" style="height:400px;">
             <source src="defence.mp4" type="video/mp4">This browser does not support videos.</video>
-            <div class="carousel-caption">
+            <div class="carousel-caption" style="color:black;font-size:20px">
               <b>Defence</b><br>
               A "safe" option, reduces chances of getting out. However, at best can fetch only one run when hit correctly. Be careful when the ball comes right at your toes, no defence is good enough. 
             </div>
@@ -215,7 +220,7 @@
           <center>
             <video id="vid_hook" style="height:400px;">
             <source src="hook.mp4" type="video/mp4">This browser does not support videos.</video>
-            <div class="carousel-caption">
+            <div class="carousel-caption" style="color:black;font-size:20px">
               <b>Hook</b><br>
               Attacking shot, best used against balls heading towards your torso. Fetches 4 runs when hit correctly, given there are no fielders adjacent to you towards your left side. 
             </div>
@@ -226,7 +231,7 @@
           <center>
             <video id="vid_latecut" style="height:400px;">
             <source src="latecut.mp4" type="video/mp4">This browser does not support videos.</video>
-            <div class="carousel-caption">
+            <div class="carousel-caption" style="color:black;font-size:20px">
               <b>Late Cut</b><br>
               A Cricket's purist delight, this shot combines technique and grace expected of a batsman. To be played when the ball is low and away from you. 
             </div>

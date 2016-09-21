@@ -46,6 +46,8 @@ var can_collide = true;
 
 var out = false;
 
+var hack = 3;
+
 var current_game_state = {};
 
 var ball_velocities = [
@@ -197,7 +199,8 @@ function begin_ball(){
     wagon_wheel();
     setTimeout(function() { 
         // Select random ball
-        delivery = Math.floor(Math.random()*ball_velocities.length);
+        delivery = hack;//Math.floor(Math.random()*ball_velocities.length);
+        hack += 1;
         ballv = ball_velocities[delivery].slice(); 
         ball = [-5000, 200, 600]; }, 1000);
 }
@@ -359,6 +362,11 @@ function wagon_wheel(){
         contextww.fill();
     }
 
+    contextww.fillStyle = 'gold';
+        contextww.beginPath();
+        contextww.arc(150, 126, 6, 0, 2 * Math.PI, false);
+        contextww.closePath();
+        contextww.fill();
 }
 
 function onTimer() {

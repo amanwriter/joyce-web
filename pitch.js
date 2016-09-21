@@ -162,7 +162,7 @@ if (contains(the_shots[shot_name][3], delivery)){
     current_game_state["balls"] += 1;
 
     if (current_game_state["balls"]>17){
-        display_message("END OF INNINGS");
+        // display_message("END OF INNINGS");
         out = true;
     }
 
